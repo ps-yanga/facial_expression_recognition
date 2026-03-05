@@ -2,12 +2,10 @@ import cv2
 from deepface import DeepFace
 
 cap=cv2.VideoCapture(0)
-
-face_cascade=cv2.CascadeClassifier(
-    cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+face_cascade=cv2.CascadeClassifier(
+    cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
 while True:
     ret,frame=cap.read()
@@ -27,7 +25,7 @@ while True:
     except:
         emotion = "unknown"
 
-    cv2.rectangle(frame,(x, y),(x + w,y + h), (0, 255, 0), 2)
+    cv2.rectangle(frame,(x, y),(x + w, y + h), (0, 255, 0), 2)
 
     text_y = y - 10 if y > 10 else y + h + 10
     cv2.putText(frame, emotion, (x, text_y),
