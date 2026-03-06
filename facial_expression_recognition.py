@@ -17,10 +17,10 @@ if not cap.isOpened():
 face_cascade=cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
-min_face_size = 80
+min_face_size = 50
 emotion_history = {}
-history_length = 15
-update_interval = 5.0
+history_length = 20
+update_interval = 4.0
 face_tracking = {}
 
 while True:
@@ -63,7 +63,7 @@ while True:
                     emotion = "neutral"
             else:
                 try:
-                    result = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False, silent=True)
+                    result = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False, silent=True, detector_backend='skip')
                     emotion = result[0]['dominant_emotion']
 
                     face_tracking[face_key]['emotions'].append(emotion)
