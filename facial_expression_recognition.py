@@ -17,6 +17,8 @@ if not cap.isOpened():
 face_cascade=cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
+
+
 min_face_size = 50
 emotion_history = {}
 history_length = 20
@@ -96,7 +98,7 @@ while True:
     for key in key_to_remove:
         del face_tracking[key]
 
-    cv2.imshow('Facial Emotion Recognition',frame)
+    cv2.imshow('Facial Expression Recognition',frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
