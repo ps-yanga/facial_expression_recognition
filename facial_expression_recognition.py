@@ -1,19 +1,23 @@
 import cv2
 from deepface import DeepFace
 import time
+from collections import Counter
 
-cap=cv2.VideoCapture(0)
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
 face_cascade=cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
-min_face_size = 50
-emotion_cache = {}
-cache_duration = 0.5
-
-last_update_time = 0
+min_face_size = 80
+emotion_history = {}
+history_length = 15
+update_interval = 2.0
+face_tracking = {}
 
 while True:
     ret,frame = cap.read()
@@ -21,8 +25,8 @@ while True:
         break
 
     gray=cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
     faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+    current_faces = []
 
     for (x,y,w,h) in faces:
         if w < min_face_size or h < min_face_size:
@@ -33,43 +37,53 @@ while True:
         y1 = max(0, y - padding)
         x2 = min(frame.shape[1], x + w + padding)
         y2 = min(frame.shape[0], y + h + padding)
-        face_roi = frame[y:y+h,x:x+w]
+        face_roi = frame[y1:y2, x1:x2]
 
         if face_roi.size == 0:
             print("No face detected")
             continue
 
-        current_time = time.time()
-        face_key = f"{x},{y},{w},{h}"
+        face_center = (x + w // 2, y + h // 2)
+        face_key = f"{face_center[0]:.0f},{face_center[1]:.0f}"
 
-        if face_key in emotion_cache:
-            last_emotion_time = emotion_cache[face_key]
-            if current_time - last_emotion_time < cache_duration:
-                emotion = emotion_cache[face_key]
+
+        if face_key not in face_tracking:
+            face_tracking[face_key] = {'emotions': [], 'last_update': 0, 'last_rect': (x, y, w, h) }
+            last_update = face_tracking[face_key]['last_update']
+
+            if time.time() - last_update < update_interval:
+                emotions = face_tracking[face_key]['emotions']
+                if emotions:
+                    emotion = Counter(emotions).most_common(1)[0][0]
+                else:
+                    emotion = "neutral"
             else:
                 try:
                     result = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False, silent=True)
                     emotion = result[0]['dominant_emotion']
-                    emotion_cache[face_key] = emotion
+
+                    face_tracking[face_key]['emotions'].append(emotion)
+                    face_tracking[face_key]['emotions'] = face_tracking[face_key]['emotions'][-history_length:]
+                    face_tracking[face_key]['last_update'] = time.time()
                 except Exception as e:
                     print(f"DeepFace Error: {e}")
                     emotion = "unknown"
-                    emotion_cache[face_key] = emotion
-        else:
-            try:
-                result = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False, silent=True)
-                emotion = result[0]['dominant_emotion']
-                print(f"Emotion Detected: {emotion}")
-            except Exception as e:
-                print(f"DeepFace Error: {e}")
-                emotion = "unknown"
 
-            cv2.rectangle(frame,(x, y),(x + w, y + h), (0, 255, 0), 2)
+            tracked_rect = face_tracking[face_key]['last_rect']
+            cv2.rectangle(frame,(tracked_rect[0], tracked_rect[1]),(tracked_rect[0] + tracked_rect[2], tracked_rect[1] + tracked_rect[3]), (0, 255, 0), 2)
+
+            face_tracking[face_key]['last_rect'] = (x, y, w, h)
 
             text_y = y - 10 if y > 10 else y + h + 10
             cv2.putText(frame, emotion, (x, text_y),
                         cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0,0,255), 2)
+
+            current_faces.append(face_key)
+
+    key_to_remove = [key for key in face_tracking if key not in current_faces]
+    for key in key_to_remove:
+        del face_tracking[key]
 
     cv2.imshow('Facial Emotion Recognition',frame)
 
