@@ -10,13 +10,17 @@ cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
+if not cap.isOpened():
+    print("Error opening video stream or file")
+    exit()
+
 face_cascade=cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
 min_face_size = 80
 emotion_history = {}
 history_length = 15
-update_interval = 2.0
+update_interval = 5.0
 face_tracking = {}
 
 while True:
@@ -70,9 +74,16 @@ while True:
                     emotion = "unknown"
 
             tracked_rect = face_tracking[face_key]['last_rect']
-            cv2.rectangle(frame,(tracked_rect[0], tracked_rect[1]),(tracked_rect[0] + tracked_rect[2], tracked_rect[1] + tracked_rect[3]), (0, 255, 0), 2)
+            new_rect = (x, y, w, h)
+            smoothed_rect = (
+                int(tracked_rect[0] * 0.7 + new_rect[0] * 0.3),
+                int(tracked_rect[1] * 0.7 + new_rect[1] * 0.3),
+                int(tracked_rect[2] * 0.7 + new_rect[2] * 0.3),
+                int(tracked_rect[3] * 0.7 + new_rect[3] * 0.3)
+            )
+            cv2.rectangle(frame,(smoothed_rect[0], smoothed_rect[1]),(smoothed_rect[0] + smoothed_rect[2], smoothed_rect[1] + smoothed_rect[3]), (0, 255, 0), 2)
 
-            face_tracking[face_key]['last_rect'] = (x, y, w, h)
+            face_tracking[face_key]['last_rect'] = smoothed_rect
 
             text_y = y - 10 if y > 10 else y + h + 10
             cv2.putText(frame, emotion, (x, text_y),
